@@ -115,14 +115,18 @@ namespace ProfileJobs.Jobs
             {
                 _logger.LogWarning(ex, $"⚠️ DbUpdateException detected while processing profile {profileId}. Skipping...");
 
-                await _unitOfWork.RollbackAsync(cancellationToken);
-
                 var thumbName = profile.TempPictureName.Split("/").LastOrDefault();
-
                 var thumbsName = $"{profile.Id.ToString()}/thumbnails/{thumbName}";
 
-                await RemoveFromMinio(thumbBucket, thumbsName, cancellationToken);
+                await Compensate(thumbBucket, thumbsName, cancellationToken);
             }
+        }
+
+        private async Task Compensate(string bucketName, string thumbsName,  CancellationToken cancellationToken)
+        {
+            await _unitOfWork.RollbackAsync(cancellationToken);
+
+            await RemoveFromMinio(bucketName, thumbsName, cancellationToken);
         }
 
         private async Task RemoveFromMinio(string bucketName, string objectName, CancellationToken cancellationToken)
